@@ -12,7 +12,7 @@ callbacks are copied verbatim from Launcher's `src/massStorage.cpp`, including:
 - **PR #297** — `bDeviceClass`/`bDeviceSubClass`/`bDeviceProtocol` are `0x00`
   (class described at interface level). This is what makes macOS enumerate the
   device as storage.
-- **PR #424** — READ10/WRITE10 handle non-zero byte offsets and partial sectors
+- **Issue #424** — READ10/WRITE10 handle non-zero byte offsets and partial sectors
   instead of rejecting them. macOS issues those during mount and probe.
 
 Nothing else from Launcher is present: no display init, no menus, no keyboard,
@@ -85,6 +85,8 @@ pio run -e t-deck-plus -t upload
    Cardputer has no switch; just plug in.
 4. Plug USB in. The device should appear as a removable drive named after the
    card's volume label.
+   Allow 10-20 seconds after boot: the SD mount retries at slower SPI clocks if
+   the first attempts fail, so the drive can take a while to show up.
 5. To leave USB mode: eject the volume from the host. The device reboots and
    the HW CDC serial port comes back for reflashing.
 

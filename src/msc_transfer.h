@@ -5,7 +5,7 @@
 // offset/partial-sector maths that macOS exercises during mount is verifiable
 // without hardware.
 //
-// This is the logic behind Launcher PR #424: a host sends READ10/WRITE10 with a
+// This is the logic behind the fix for Launcher issue #424: a host sends READ10/WRITE10 with a
 // non-zero byte offset and lengths that do not line up with sector boundaries,
 // and the device has to satisfy them instead of failing the transfer.
 

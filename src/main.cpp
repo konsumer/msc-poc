@@ -2,7 +2,7 @@
 //
 // Mounts the SD card and exposes it to a USB host as a removable SCSI disk,
 // using the exact device descriptor and MSC callbacks from Launcher
-// (src/massStorage.cpp: PR #297 bDeviceClass fix + PR #424 partial/non-zero
+// (src/massStorage.cpp: PR #297 bDeviceClass fix + issue #424 partial/non-zero
 // offset READ10/WRITE10 fix). Everything else in Launcher (display, menus,
 // keyboard, WiFi, OTA, WebUI) is gone, so a host-side mount failure can be
 // attributed to the USB MSC path itself instead of to the surrounding app.
@@ -488,11 +488,30 @@ void setup() {
     delay(300);
     Serial.printf("\n%s USB MSC PoC %s\n", DEVICE_NAME, kVersion);
 
-    s_sdcardSPI.begin(SDCARD_SCK, SDCARD_MISO, SDCARD_MOSI, SDCARD_CS);
-    delay(10);
-    if (!SD.begin(SDCARD_CS, s_sdcardSPI)) {
-        Serial.println("SD mount failed - nothing to export, halting");
-        while (true) delay(1000);
+    pinMode(SDCARD_CS, OUTPUT);
+    digitalWrite(SDCARD_CS, HIGH);
+    delay(250); // let the card's supply settle after power-up / reset
+
+    // A card left mid-command by a previous run can need several attempts, and
+    // a slower clock, before it answers CMD0.
+    static const uint32_t kSdFreqs[] = {20000000, 10000000, 4000000, 1000000, 400000};
+    bool sdOk = false;
+    for (int attempt = 0; attempt < 10 && !sdOk; ++attempt) {
+        const uint32_t freq = kSdFreqs[attempt % (sizeof(kSdFreqs) / sizeof(kSdFreqs[0]))];
+        SD.end();
+        s_sdcardSPI.end();
+        s_sdcardSPI.begin(SDCARD_SCK, SDCARD_MISO, SDCARD_MOSI, SDCARD_CS);
+        delay(50);
+        sdOk = SD.begin(SDCARD_CS, s_sdcardSPI, freq);
+        Serial.printf("SD.begin attempt %d @ %lu Hz: %s (type %d)\n", attempt + 1, (unsigned long)freq,
+                      sdOk ? "ok" : "fail", sdOk ? (int)SD.cardType() : -1);
+    }
+    if (!sdOk) {
+        while (true) {
+            Serial.println("SD mount failed - nothing to export, halting");
+            Serial.println("check: card seated, FAT32 formatted, try another card");
+            delay(1000);
+        }
     }
     Serial.printf("SD: %lu sectors x %lu B\n", (unsigned long)SD.numSectors(), (unsigned long)SD.sectorSize());
 
@@ -501,9 +520,21 @@ void setup() {
     s_lastMscActivityMs = millis();
     s_lastFlushMs = millis();
 
-    // beginUsb() releases Serial, so nothing may be printed after it fails.
+    // The host needs a moment to reattach the CDC port after a reset, so keep
+    // reporting status for a while before beginUsb() takes the PHY away.
+    for (int i = 2; i > 0; --i) {
+        Serial.printf("SD ok, %lu MB; starting USB MSC in %d s\n",
+                      (unsigned long)(((uint64_t)SD.numSectors() * SD.sectorSize()) >> 20), i);
+        delay(1000);
+    }
+
     if (!beginUsb()) {
         flushLog("usb failed"); // usbTask is not running, so flush here
+        Serial.begin(115200);
+        while (true) {
+            Serial.println("USB MSC start failed, see /msc-poc.log");
+            delay(1000);
+        }
     }
 }
 
