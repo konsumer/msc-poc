@@ -49,6 +49,10 @@ jobs:
         run: pip install --upgrade platformio
 
       - name: Build
+        env:
+          # Shows up in /msc-poc.log and the boot banner; keeps the image
+          # reproducible for a given commit (no __DATE__/__TIME__).
+          PLATFORMIO_BUILD_FLAGS: -DPOC_VERSION='"${{ github.ref_name }}"'
         run: pio run -e ${{ matrix.env }}
 
       - name: Collect flashable image

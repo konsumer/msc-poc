@@ -1,5 +1,7 @@
 # msc-poc — USB mass storage proof-of-concept
 
+[![build](https://github.com/konsumer/msc-poc/actions/workflows/build.yml/badge.svg)](https://github.com/konsumer/msc-poc/actions/workflows/build.yml)
+
 Minimal ESP32-S2/S3 firmware that does exactly one thing: mount the SD card and
 present it to a USB host as a removable SCSI disk.
 

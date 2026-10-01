@@ -35,6 +35,14 @@
 #error "Board env must define SDCARD_CS/SCK/MISO/MOSI."
 #endif
 
+// Set by CI to the release tag (e.g. "v0.1.0"), so a flashed image can be
+// traced back to a release from its log. "dev" for local builds.
+#ifndef POC_VERSION
+#define POC_VERSION ""
+#endif
+// POC_VERSION is empty when no version was passed in.
+constexpr const char *kVersion = sizeof(POC_VERSION) > 1 ? POC_VERSION : "dev";
+
 // ---------------------------------------------------------------------------
 // Logging
 //
@@ -164,12 +172,11 @@ void logHeader() {
     File f = SD.open(kLogPath, FILE_APPEND, true);
     if (!f) return;
     f.printf(
-        "\n==== %s USB MSC PoC ====\n"
-        "build %s %s, mcu %s, sd cs=%d sck=%d miso=%d mosi=%d\n"
+        "\n==== %s USB MSC PoC %s ====\n"
+        "mcu %s, sd cs=%d sck=%d miso=%d mosi=%d\n"
         "sd: %lu sectors x %lu bytes = %lu MB\n",
         DEVICE_NAME,
-        __DATE__,
-        __TIME__,
+        kVersion,
         ESP.getChipModel(),
         SDCARD_CS,
         SDCARD_SCK,
@@ -479,7 +486,7 @@ extern "C" int32_t tud_msc_scsi_cb(uint8_t lun, uint8_t const scsi_cmd[16], void
 void setup() {
     Serial.begin(115200);
     delay(300);
-    Serial.printf("\n%s USB MSC PoC (%s %s)\n", DEVICE_NAME, __DATE__, __TIME__);
+    Serial.printf("\n%s USB MSC PoC %s\n", DEVICE_NAME, kVersion);
 
     s_sdcardSPI.begin(SDCARD_SCK, SDCARD_MISO, SDCARD_MOSI, SDCARD_CS);
     delay(10);
