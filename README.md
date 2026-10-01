@@ -52,11 +52,27 @@ Environments:
 
 | env | device |
 |---|---|
-| `cardputer-adv` | M5Stack Cardputer / Cardputer ADV |
-| `t-deck-plus` | LilyGo T-Deck and T-Deck Plus (same SD wiring) |
+| `cardputer` | M5Stack Cardputer |
+| `cardputer-adv` | M5Stack Cardputer ADV |
+| `t-deck` | LilyGo T-Deck |
+| `t-deck-plus` | LilyGo T-Deck Plus |
 | `t-deck-pro` | LilyGo T-Deck Pro (e-paper; SD shares the SPI bus with the panel) |
 
 SD pin assignments are taken from Launcher's board configs for each device.
+
+Prebuilt factory images for every environment are attached to each
+[release](https://github.com/konsumer/msc-poc/releases) by CI. A factory image
+contains bootloader + partitions + app and is flashed at offset `0x0`:
+
+```bash
+esptool.py --chip esp32s3 write_flash 0x0 msc-poc-t-deck-plus.bin
+```
+
+or with PlatformIO:
+
+```bash
+pio run -e t-deck-plus -t upload
+```
 
 ## Usage
 

@@ -1,0 +1,106 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: host test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Transfer maths (ASan/UBSan)
+        run: ./test/run.sh
+
+  build:
+    name: build ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - cardputer
+          - cardputer-adv
+          - t-deck
+          - t-deck-plus
+          - t-deck-pro
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build
+        run: pio run -e ${{ matrix.env }}
+
+      - name: Collect flashable image
+        run: |
+          mkdir -p dist
+          cp ".pio/build/${{ matrix.env }}/firmware.factory.bin" "dist/msc-poc-${{ matrix.env }}.bin"
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: msc-poc-${{ matrix.env }}
+          path: dist/*.bin
+          if-no-files-found: error
+
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write checksums
+        run: |
+          cd dist
+          sha256sum *.bin > SHA256SUMS
+          ls -l
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.bin
+            dist/SHA256SUMS
+          generate_release_notes: true
+          body: |
+            Standalone USB mass storage proof-of-concept for ESP32-S2/S3 boards.
+
+            Each `.bin` is a complete factory image (bootloader + partitions + app)
+            for one device, to be flashed at offset `0x0`:
+
+            * `msc-poc-cardputer.bin` — M5Stack Cardputer
+            * `msc-poc-cardputer-adv.bin` — M5Stack Cardputer ADV
+            * `msc-poc-t-deck.bin` — LilyGo T-Deck
+            * `msc-poc-t-deck-plus.bin` — LilyGo T-Deck Plus
+            * `msc-poc-t-deck-pro.bin` — LilyGo T-Deck Pro
+
+            Flash the matching file, insert a FAT-formatted SD card, unplug USB,
+            turn the power switch off on T-Deck family devices, then plug USB in.
+            The card should appear as a removable drive; the run is recorded in
+            `/msc-poc.log` on the card. See README.md for details.
