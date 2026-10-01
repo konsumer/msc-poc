@@ -97,6 +97,17 @@ side and from the log file it writes.
 geometry header, then periodic blocks with SCSI counters, an opcode histogram
 and lifecycle/error events.
 
+Each run starts with a header that identifies the image and the card it saw:
+
+```
+==== T-Deck Plus USB MSC PoC v0.1.0 ====
+mcu ESP32-S3, sd cs=39 sck=40 miso=38 mosi=41
+sd: 62333952 sectors x 512 bytes = 30431 MB
+```
+
+The version is the release tag for CI builds (the workflow passes
+`POC_VERSION=<tag>`), or `dev` for local builds.
+
 Two rules keep the log from perturbing the thing being tested:
 
 1. **Nothing is written from inside a transfer callback.** Callbacks only bump
